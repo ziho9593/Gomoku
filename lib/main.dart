@@ -39,6 +39,7 @@ class _GomokuPageState extends State<GomokuPage> {
 
   late List<List<int>> board;
   int currentTurn = blackStone;
+  int winner = empty;
 
   @override
   void initState() {
@@ -53,9 +54,14 @@ class _GomokuPageState extends State<GomokuPage> {
       (_) => List.generate(boardSize, (_) => empty),
     );
     currentTurn = blackStone;
+    winner = empty;
   }
 
   void _handleBoardTap(Offset tapPosition, Size boardAreaSize) {
+    if (winner != empty) {
+      return;
+    }
+
     final double gap = _lineGap(boardAreaSize);
     final double boardStart = boardPadding;
     final double boardEnd = boardStart + gap * (boardSize - 1);
@@ -72,7 +78,7 @@ class _GomokuPageState extends State<GomokuPage> {
     final int col = ((tapPosition.dx - boardStart) / gap).round();
     final int row = ((tapPosition.dy - boardStart) / gap).round();
 
-    if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) {
+    if (!_isInsideBoard(row, col)) {
       return;
     }
 
@@ -92,9 +98,64 @@ class _GomokuPageState extends State<GomokuPage> {
     setState(() {
       board[row][col] = currentTurn;
 
-      // 승리 판정은 아직 없으므로 착수 후 바로 다음 차례로 넘깁니다.
+      // 방금 둔 돌을 기준으로 5개 이상 연결됐는지 확인합니다.
+      if (_hasFiveInARow(row, col, currentTurn)) {
+        winner = currentTurn;
+        return;
+      }
+
       currentTurn = currentTurn == blackStone ? whiteStone : blackStone;
     });
+  }
+
+  bool _hasFiveInARow(int row, int col, int stone) {
+    // 가로, 세로, 대각선 2개 방향만 확인하면 모든 5목을 검사할 수 있습니다.
+    const List<List<int>> directions = [
+      [0, 1],
+      [1, 0],
+      [1, 1],
+      [1, -1],
+    ];
+
+    for (final List<int> direction in directions) {
+      final int rowStep = direction[0];
+      final int colStep = direction[1];
+
+      final int connectedCount = 1 +
+          _countSameStones(row, col, rowStep, colStep, stone) +
+          _countSameStones(row, col, -rowStep, -colStep, stone);
+
+      if (connectedCount >= 5) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  int _countSameStones(
+    int startRow,
+    int startCol,
+    int rowStep,
+    int colStep,
+    int stone,
+  ) {
+    int count = 0;
+    int row = startRow + rowStep;
+    int col = startCol + colStep;
+
+    // 한 방향으로 이동하면서 같은 색 돌이 연속되는 개수를 셉니다.
+    while (_isInsideBoard(row, col) && board[row][col] == stone) {
+      count++;
+      row += rowStep;
+      col += colStep;
+    }
+
+    return count;
+  }
+
+  bool _isInsideBoard(int row, int col) {
+    return row >= 0 && row < boardSize && col >= 0 && col < boardSize;
   }
 
   void _restartGame() {
@@ -103,7 +164,15 @@ class _GomokuPageState extends State<GomokuPage> {
     });
   }
 
-  String get _turnText {
+  String get _statusText {
+    if (winner == blackStone) {
+      return '흑돌 승리!';
+    }
+
+    if (winner == whiteStone) {
+      return '백돌 승리!';
+    }
+
     return currentTurn == blackStone ? '현재 차례: 흑돌' : '현재 차례: 백돌';
   }
 
@@ -116,7 +185,10 @@ class _GomokuPageState extends State<GomokuPage> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              Text(_turnText, style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                _statusText,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 16),
               Expanded(
                 child: Center(
