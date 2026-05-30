@@ -34,6 +34,9 @@ class _GomokuPageState extends State<GomokuPage> {
   static const int blackStone = 1;
   static const int whiteStone = 2;
 
+  // 돌이 보드 가장자리에서 잘리지 않도록 선을 안쪽에서 시작합니다.
+  static const double boardPadding = 20;
+
   late List<List<int>> board;
   int currentTurn = blackStone;
 
@@ -44,7 +47,7 @@ class _GomokuPageState extends State<GomokuPage> {
   }
 
   void _resetGame() {
-    // 15x15 보드를 만들고 모든 칸을 빈 칸(0)으로 초기화합니다.
+    // 15x15 교차점 상태를 만들고 모든 위치를 빈 곳(0)으로 초기화합니다.
     board = List.generate(
       boardSize,
       (_) => List.generate(boardSize, (_) => empty),
@@ -52,8 +55,36 @@ class _GomokuPageState extends State<GomokuPage> {
     currentTurn = blackStone;
   }
 
+  void _handleBoardTap(Offset tapPosition, Size boardAreaSize) {
+    final double gap = _lineGap(boardAreaSize);
+    final double boardStart = boardPadding;
+    final double boardEnd = boardStart + gap * (boardSize - 1);
+
+    // 바둑판 선 영역에서 너무 멀리 떨어진 탭은 무시합니다.
+    if (tapPosition.dx < boardStart - gap / 2 ||
+        tapPosition.dx > boardEnd + gap / 2 ||
+        tapPosition.dy < boardStart - gap / 2 ||
+        tapPosition.dy > boardEnd + gap / 2) {
+      return;
+    }
+
+    // 탭한 화면 좌표를 가장 가까운 교차점 좌표로 바꿉니다.
+    final int col = ((tapPosition.dx - boardStart) / gap).round();
+    final int row = ((tapPosition.dy - boardStart) / gap).round();
+
+    if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) {
+      return;
+    }
+
+    _placeStone(row, col);
+  }
+
+  double _lineGap(Size boardAreaSize) {
+    return (boardAreaSize.shortestSide - boardPadding * 2) / (boardSize - 1);
+  }
+
   void _placeStone(int row, int col) {
-    // 이미 돌이 있는 칸에는 새 돌을 놓지 않습니다.
+    // 이미 돌이 있는 교차점에는 새 돌을 놓지 않습니다.
     if (board[row][col] != empty) {
       return;
     }
@@ -79,26 +110,17 @@ class _GomokuPageState extends State<GomokuPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('오목'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('오목'), centerTitle: true),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              Text(
-                _turnText,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              Text(_turnText, style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 16),
               Expanded(
                 child: Center(
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: _buildBoard(),
-                  ),
+                  child: AspectRatio(aspectRatio: 1, child: _buildBoard()),
                 ),
               ),
               const SizedBox(height: 16),
@@ -115,61 +137,129 @@ class _GomokuPageState extends State<GomokuPage> {
   }
 
   Widget _buildBoard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFD9A85F),
-        border: Border.all(color: Colors.brown.shade900, width: 2),
-      ),
-      child: GridView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: boardSize * boardSize,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: boardSize,
-        ),
-        itemBuilder: (context, index) {
-          final int row = index ~/ boardSize;
-          final int col = index % boardSize;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final Size boardAreaSize = Size(
+          constraints.maxWidth,
+          constraints.maxHeight,
+        );
 
-          return _buildCell(row, col);
-        },
-      ),
+        return GestureDetector(
+          onTapUp: (details) {
+            _handleBoardTap(details.localPosition, boardAreaSize);
+          },
+          child: CustomPaint(
+            size: boardAreaSize,
+            painter: GomokuBoardPainter(
+              board: board,
+              boardSize: boardSize,
+              empty: empty,
+              blackStone: blackStone,
+              padding: boardPadding,
+            ),
+          ),
+        );
+      },
     );
   }
+}
 
-  Widget _buildCell(int row, int col) {
-    final int stone = board[row][col];
+class GomokuBoardPainter extends CustomPainter {
+  const GomokuBoardPainter({
+    required this.board,
+    required this.boardSize,
+    required this.empty,
+    required this.blackStone,
+    required this.padding,
+  });
 
-    return GestureDetector(
-      onTap: () => _placeStone(row, col),
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.brown.shade700, width: 0.5),
-        ),
-        child: Center(
-          child: _buildStone(stone),
-        ),
-      ),
-    );
+  final List<List<int>> board;
+  final int boardSize;
+  final int empty;
+  final int blackStone;
+  final double padding;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect boardRect = Offset.zero & size;
+    final double gap = (size.shortestSide - padding * 2) / (boardSize - 1);
+    final double lineStart = padding;
+    final double lineEnd = lineStart + gap * (boardSize - 1);
+
+    _drawBoardBackground(canvas, boardRect);
+    _drawBoardLines(canvas, lineStart, lineEnd, gap);
+    _drawStones(canvas, lineStart, gap);
   }
 
-  Widget _buildStone(int stone) {
-    // 빈 칸이면 아무것도 그리지 않습니다.
-    if (stone == empty) {
-      return const SizedBox.shrink();
+  void _drawBoardBackground(Canvas canvas, Rect boardRect) {
+    final Paint backgroundPaint = Paint()..color = const Color(0xFFD9A85F);
+    final Paint borderPaint = Paint()
+      ..color = Colors.brown.shade900
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawRect(boardRect, backgroundPaint);
+    canvas.drawRect(boardRect.deflate(1), borderPaint);
+  }
+
+  void _drawBoardLines(
+    Canvas canvas,
+    double lineStart,
+    double lineEnd,
+    double gap,
+  ) {
+    final Paint linePaint = Paint()
+      ..color = Colors.brown.shade800
+      ..strokeWidth = 1;
+
+    for (int i = 0; i < boardSize; i++) {
+      final double position = lineStart + gap * i;
+
+      canvas.drawLine(
+        Offset(lineStart, position),
+        Offset(lineEnd, position),
+        linePaint,
+      );
+      canvas.drawLine(
+        Offset(position, lineStart),
+        Offset(position, lineEnd),
+        linePaint,
+      );
     }
+  }
 
-    final bool isBlack = stone == blackStone;
+  void _drawStones(Canvas canvas, double lineStart, double gap) {
+    final double stoneRadius = gap * 0.38;
 
-    return FractionallySizedBox(
-      widthFactor: 0.72,
-      heightFactor: 0.72,
-      child: Container(
-        decoration: BoxDecoration(
-          color: isBlack ? Colors.black : Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.black87),
-        ),
-      ),
-    );
+    for (int row = 0; row < boardSize; row++) {
+      for (int col = 0; col < boardSize; col++) {
+        final int stone = board[row][col];
+
+        if (stone == empty) {
+          continue;
+        }
+
+        final Offset center = Offset(
+          lineStart + gap * col,
+          lineStart + gap * row,
+        );
+
+        final bool isBlack = stone == blackStone;
+        final Paint stonePaint = Paint()
+          ..color = isBlack ? Colors.black : Colors.white;
+        final Paint stoneBorderPaint = Paint()
+          ..color = Colors.black87
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1;
+
+        canvas.drawCircle(center, stoneRadius, stonePaint);
+        canvas.drawCircle(center, stoneRadius, stoneBorderPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant GomokuBoardPainter oldDelegate) {
+    return true;
   }
 }
