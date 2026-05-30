@@ -137,12 +137,11 @@ List<List<int>> board;
 예시:
 
 ```text
-✨ feat: add gomoku board
-✨ feat: place black and white stones
-🐛 fix: prevent placing stone on occupied cell
-♻️ refactor: extract win checking logic
-💄 style: improve board layout
-📝 docs: add project guide
+✨ feat: 기본 오목판 틀 추가
+🐛 fix: 점유된 자리에 착수 금지
+♻️ refactor: 승리 판정 로직 개선
+💄 style: 오목판 레이아웃 변경
+📝 docs: 프로젝트 가이드 수정
 ```
 
 주요 타입:
