@@ -1,125 +1,265 @@
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const GomokuApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class GomokuApp extends StatelessWidget {
+  const GomokuApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Gomoku',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const GomokuPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class GomokuPage extends StatefulWidget {
+  const GomokuPage({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<GomokuPage> createState() => _GomokuPageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _GomokuPageState extends State<GomokuPage> {
+  static const int boardSize = 15;
+  static const int empty = 0;
+  static const int blackStone = 1;
+  static const int whiteStone = 2;
 
-  void _incrementCounter() {
+  // 돌이 보드 가장자리에서 잘리지 않도록 선을 안쪽에서 시작합니다.
+  static const double boardPadding = 20;
+
+  late List<List<int>> board;
+  int currentTurn = blackStone;
+
+  @override
+  void initState() {
+    super.initState();
+    _resetGame();
+  }
+
+  void _resetGame() {
+    // 15x15 교차점 상태를 만들고 모든 위치를 빈 곳(0)으로 초기화합니다.
+    board = List.generate(
+      boardSize,
+      (_) => List.generate(boardSize, (_) => empty),
+    );
+    currentTurn = blackStone;
+  }
+
+  void _handleBoardTap(Offset tapPosition, Size boardAreaSize) {
+    final double gap = _lineGap(boardAreaSize);
+    final double boardStart = boardPadding;
+    final double boardEnd = boardStart + gap * (boardSize - 1);
+
+    // 바둑판 선 영역에서 너무 멀리 떨어진 탭은 무시합니다.
+    if (tapPosition.dx < boardStart - gap / 2 ||
+        tapPosition.dx > boardEnd + gap / 2 ||
+        tapPosition.dy < boardStart - gap / 2 ||
+        tapPosition.dy > boardEnd + gap / 2) {
+      return;
+    }
+
+    // 탭한 화면 좌표를 가장 가까운 교차점 좌표로 바꿉니다.
+    final int col = ((tapPosition.dx - boardStart) / gap).round();
+    final int row = ((tapPosition.dy - boardStart) / gap).round();
+
+    if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) {
+      return;
+    }
+
+    _placeStone(row, col);
+  }
+
+  double _lineGap(Size boardAreaSize) {
+    return (boardAreaSize.shortestSide - boardPadding * 2) / (boardSize - 1);
+  }
+
+  void _placeStone(int row, int col) {
+    // 이미 돌이 있는 교차점에는 새 돌을 놓지 않습니다.
+    if (board[row][col] != empty) {
+      return;
+    }
+
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      board[row][col] = currentTurn;
+
+      // 승리 판정은 아직 없으므로 착수 후 바로 다음 차례로 넘깁니다.
+      currentTurn = currentTurn == blackStone ? whiteStone : blackStone;
     });
+  }
+
+  void _restartGame() {
+    setState(() {
+      _resetGame();
+    });
+  }
+
+  String get _turnText {
+    return currentTurn == blackStone ? '현재 차례: 흑돌' : '현재 차례: 백돌';
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+      appBar: AppBar(title: const Text('오목'), centerTitle: true),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text(_turnText, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              Expanded(
+                child: Center(
+                  child: AspectRatio(aspectRatio: 1, child: _buildBoard()),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _restartGame,
+                icon: const Icon(Icons.refresh),
+                label: const Text('게임 재시작'),
+              ),
+            ],
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  Widget _buildBoard() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final Size boardAreaSize = Size(
+          constraints.maxWidth,
+          constraints.maxHeight,
+        );
+
+        return GestureDetector(
+          onTapUp: (details) {
+            _handleBoardTap(details.localPosition, boardAreaSize);
+          },
+          child: CustomPaint(
+            size: boardAreaSize,
+            painter: GomokuBoardPainter(
+              board: board,
+              boardSize: boardSize,
+              empty: empty,
+              blackStone: blackStone,
+              padding: boardPadding,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class GomokuBoardPainter extends CustomPainter {
+  const GomokuBoardPainter({
+    required this.board,
+    required this.boardSize,
+    required this.empty,
+    required this.blackStone,
+    required this.padding,
+  });
+
+  final List<List<int>> board;
+  final int boardSize;
+  final int empty;
+  final int blackStone;
+  final double padding;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect boardRect = Offset.zero & size;
+    final double gap = (size.shortestSide - padding * 2) / (boardSize - 1);
+    final double lineStart = padding;
+    final double lineEnd = lineStart + gap * (boardSize - 1);
+
+    _drawBoardBackground(canvas, boardRect);
+    _drawBoardLines(canvas, lineStart, lineEnd, gap);
+    _drawStones(canvas, lineStart, gap);
+  }
+
+  void _drawBoardBackground(Canvas canvas, Rect boardRect) {
+    final Paint backgroundPaint = Paint()..color = const Color(0xFFD9A85F);
+    final Paint borderPaint = Paint()
+      ..color = Colors.brown.shade900
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawRect(boardRect, backgroundPaint);
+    canvas.drawRect(boardRect.deflate(1), borderPaint);
+  }
+
+  void _drawBoardLines(
+    Canvas canvas,
+    double lineStart,
+    double lineEnd,
+    double gap,
+  ) {
+    final Paint linePaint = Paint()
+      ..color = Colors.brown.shade800
+      ..strokeWidth = 1;
+
+    for (int i = 0; i < boardSize; i++) {
+      final double position = lineStart + gap * i;
+
+      canvas.drawLine(
+        Offset(lineStart, position),
+        Offset(lineEnd, position),
+        linePaint,
+      );
+      canvas.drawLine(
+        Offset(position, lineStart),
+        Offset(position, lineEnd),
+        linePaint,
+      );
+    }
+  }
+
+  void _drawStones(Canvas canvas, double lineStart, double gap) {
+    final double stoneRadius = gap * 0.38;
+
+    for (int row = 0; row < boardSize; row++) {
+      for (int col = 0; col < boardSize; col++) {
+        final int stone = board[row][col];
+
+        if (stone == empty) {
+          continue;
+        }
+
+        final Offset center = Offset(
+          lineStart + gap * col,
+          lineStart + gap * row,
+        );
+
+        final bool isBlack = stone == blackStone;
+        final Paint stonePaint = Paint()
+          ..color = isBlack ? Colors.black : Colors.white;
+        final Paint stoneBorderPaint = Paint()
+          ..color = Colors.black87
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1;
+
+        canvas.drawCircle(center, stoneRadius, stonePaint);
+        canvas.drawCircle(center, stoneRadius, stoneBorderPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant GomokuBoardPainter oldDelegate) {
+    return true;
   }
 }
