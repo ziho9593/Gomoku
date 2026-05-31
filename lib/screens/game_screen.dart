@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../logic/game_rules.dart';
 import '../models/board_point.dart';
+import '../models/move_record.dart';
 import '../widgets/game_status_bar.dart';
 import '../widgets/gomoku_board.dart';
 
@@ -29,6 +30,8 @@ class _GameScreenState extends State<GameScreen> {
   int remainingSeconds = turnTimeLimitSeconds;
   Timer? turnTimer;
   List<BoardPoint> winningLine = [];
+  List<MoveRecord> moveHistory = [];
+  String? forbiddenMessage;
 
   final GameRules gameRules = const GameRules(
     boardSize: boardSize,
@@ -60,6 +63,8 @@ class _GameScreenState extends State<GameScreen> {
     lastMoveCol = null;
     remainingSeconds = turnTimeLimitSeconds;
     winningLine = [];
+    moveHistory = [];
+    forbiddenMessage = null;
   }
 
   void _handleBoardTap(Offset tapPosition, Size boardAreaSize) {
@@ -101,6 +106,14 @@ class _GameScreenState extends State<GameScreen> {
       return;
     }
 
+    if (currentTurn == blackStone &&
+        gameRules.isForbiddenMove(board, row, col, blackStone)) {
+      setState(() {
+        forbiddenMessage = '금수입니다';
+      });
+      return;
+    }
+
     bool gameWon = false;
 
     setState(() {
@@ -108,6 +121,8 @@ class _GameScreenState extends State<GameScreen> {
       lastMoveRow = row;
       lastMoveCol = col;
       remainingSeconds = turnTimeLimitSeconds;
+      forbiddenMessage = null;
+      moveHistory.add(MoveRecord(row: row, col: col, stone: currentTurn));
 
       // 방금 둔 돌을 기준으로 5개 이상 연결됐는지 확인합니다.
       final List<BoardPoint> line = gameRules.findWinningLine(
@@ -140,6 +155,33 @@ class _GameScreenState extends State<GameScreen> {
     _startTurnTimer();
   }
 
+  void _undoMove() {
+    if (moveHistory.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      final MoveRecord lastMove = moveHistory.removeLast();
+      board[lastMove.row][lastMove.col] = empty;
+      currentTurn = lastMove.stone;
+      winner = empty;
+      winningLine = [];
+      forbiddenMessage = null;
+      remainingSeconds = turnTimeLimitSeconds;
+
+      if (moveHistory.isEmpty) {
+        lastMoveRow = null;
+        lastMoveCol = null;
+      } else {
+        final MoveRecord previousMove = moveHistory.last;
+        lastMoveRow = previousMove.row;
+        lastMoveCol = previousMove.col;
+      }
+    });
+
+    _startTurnTimer();
+  }
+
   void _startTurnTimer() {
     _stopTurnTimer();
     turnTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -169,6 +211,10 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   String get _statusText {
+    if (forbiddenMessage != null) {
+      return forbiddenMessage!;
+    }
+
     if (winner == blackStone) {
       return '흑돌 승리!';
     }
@@ -234,10 +280,21 @@ class _GameScreenState extends State<GameScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: _restartGame,
-                icon: const Icon(Icons.refresh),
-                label: const Text('게임 재시작'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: moveHistory.isEmpty ? null : _undoMove,
+                    icon: const Icon(Icons.undo),
+                    label: const Text('무르기'),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton.icon(
+                    onPressed: _restartGame,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('게임 재시작'),
+                  ),
+                ],
               ),
             ],
           ),

@@ -41,6 +41,50 @@ void main() {
     expect(find.text('60초'), findsOneWidget);
   });
 
+  testWidgets('Undo removes the last move and returns the turn', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const GomokuApp());
+
+    final Finder boardFinder = _findGomokuBoard();
+    await _tapIntersection(tester, boardFinder, row: 7, col: 7);
+
+    expect(find.text('백돌 차례'), findsOneWidget);
+
+    await tester.tap(find.text('무르기'));
+    await tester.pump();
+
+    final GomokuBoardPainter painter = _boardPainter(tester, boardFinder);
+
+    expect(find.text('흑돌 차례'), findsOneWidget);
+    expect(painter.board[7][7], 0);
+    expect(painter.lastMoveRow, isNull);
+    expect(painter.lastMoveCol, isNull);
+  });
+
+  testWidgets('Black cannot place a double-three forbidden move', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const GomokuApp());
+
+    final Finder boardFinder = _findGomokuBoard();
+
+    await _tapIntersection(tester, boardFinder, row: 7, col: 6); // 흑
+    await _tapIntersection(tester, boardFinder, row: 0, col: 0); // 백
+    await _tapIntersection(tester, boardFinder, row: 7, col: 8); // 흑
+    await _tapIntersection(tester, boardFinder, row: 0, col: 1); // 백
+    await _tapIntersection(tester, boardFinder, row: 6, col: 7); // 흑
+    await _tapIntersection(tester, boardFinder, row: 0, col: 2); // 백
+    await _tapIntersection(tester, boardFinder, row: 8, col: 7); // 흑
+    await _tapIntersection(tester, boardFinder, row: 0, col: 3); // 백
+    await _tapIntersection(tester, boardFinder, row: 7, col: 7); // 금수
+
+    final GomokuBoardPainter painter = _boardPainter(tester, boardFinder);
+
+    expect(find.text('금수입니다'), findsOneWidget);
+    expect(painter.board[7][7], 0);
+  });
+
   testWidgets('Black wins and passes the winning line to the board painter', (
     WidgetTester tester,
   ) async {
