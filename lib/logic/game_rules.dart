@@ -57,13 +57,9 @@ class GameRules {
 
     board[row][col] = blackStone;
 
-    final bool isOverline = _hasOverline(board, row, col, blackStone);
-    final bool isExactFive =
-        findWinningLine(board, row, col, blackStone).isNotEmpty && !isOverline;
-    final bool isForbidden = !isExactFive &&
-        (isOverline ||
-            _countFourDirections(board, row, col, blackStone) >= 2 ||
-            _countOpenThreeDirections(board, row, col, blackStone) >= 2);
+    final bool isForbidden = _hasOverline(board, row, col, blackStone) ||
+        _countFourDirections(board, row, col, blackStone) >= 2 ||
+        _countOpenThreeDirections(board, row, col, blackStone) >= 2;
 
     board[row][col] = empty;
     return isForbidden;
@@ -73,14 +69,9 @@ class GameRules {
     for (final List<int> direction in directions) {
       final int rowStep = direction[0];
       final int colStep = direction[1];
-      final int connectedCount = _lineLength(
-        board,
-        row,
-        col,
-        rowStep,
-        colStep,
-        stone,
-      );
+      final int connectedCount = 1 +
+          _collectSameStones(board, row, col, rowStep, colStep, stone).length +
+          _collectSameStones(board, row, col, -rowStep, -colStep, stone).length;
 
       if (connectedCount > 5) {
         return true;
@@ -99,51 +90,13 @@ class GameRules {
     int count = 0;
 
     for (final List<int> direction in directions) {
-      if (_hasFourInDirection(
-        board,
-        row,
-        col,
-        direction[0],
-        direction[1],
-        stone,
-      )) {
+      if (_lineText(board, row, col, direction[0], direction[1], stone)
+          .contains('BBBB')) {
         count++;
       }
     }
 
     return count;
-  }
-
-  bool _hasFourInDirection(
-    List<List<int>> board,
-    int row,
-    int col,
-    int rowStep,
-    int colStep,
-    int stone,
-  ) {
-    // 이 방향의 빈 곳 하나에 더 두었을 때 정확한 5목이 되면 4로 봅니다.
-    for (int offset = -4; offset <= 4; offset++) {
-      final int targetRow = row + rowStep * offset;
-      final int targetCol = col + colStep * offset;
-
-      if (!isInsideBoard(targetRow, targetCol) ||
-          board[targetRow][targetCol] != empty) {
-        continue;
-      }
-
-      board[targetRow][targetCol] = stone;
-      final bool makesFive =
-          _lineLength(board, targetRow, targetCol, rowStep, colStep, stone) ==
-              5;
-      board[targetRow][targetCol] = empty;
-
-      if (makesFive) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   int _countOpenThreeDirections(
@@ -155,14 +108,19 @@ class GameRules {
     int count = 0;
 
     for (final List<int> direction in directions) {
-      if (_hasOpenThreeInDirection(
+      final String line = _lineText(
         board,
         row,
         col,
         direction[0],
         direction[1],
         stone,
-      )) {
+      );
+
+      // 열린 3은 양쪽에 빈 곳이 있어 다음 수에 열린 4로 커질 수 있는 형태입니다.
+      if (line.contains('EBBBE') ||
+          line.contains('EBBEBE') ||
+          line.contains('EBEBBE')) {
         count++;
       }
     }
@@ -170,7 +128,7 @@ class GameRules {
     return count;
   }
 
-  bool _hasOpenThreeInDirection(
+  String _lineText(
     List<List<int>> board,
     int row,
     int col,
@@ -178,79 +136,24 @@ class GameRules {
     int colStep,
     int stone,
   ) {
-    // 열린 3은 이 방향의 빈 곳 하나에 더 두면 양쪽으로 열린 4가 되는 형태입니다.
+    final StringBuffer buffer = StringBuffer();
+
     for (int offset = -4; offset <= 4; offset++) {
-      final int targetRow = row + rowStep * offset;
-      final int targetCol = col + colStep * offset;
+      final int currentRow = row + rowStep * offset;
+      final int currentCol = col + colStep * offset;
 
-      if (!isInsideBoard(targetRow, targetCol) ||
-          board[targetRow][targetCol] != empty) {
-        continue;
-      }
-
-      board[targetRow][targetCol] = stone;
-      final bool makesOpenFour = _hasOpenFourInDirection(
-        board,
-        targetRow,
-        targetCol,
-        rowStep,
-        colStep,
-        stone,
-      );
-      board[targetRow][targetCol] = empty;
-
-      if (makesOpenFour) {
-        return true;
+      if (!isInsideBoard(currentRow, currentCol)) {
+        buffer.write('X');
+      } else if (board[currentRow][currentCol] == empty) {
+        buffer.write('E');
+      } else if (board[currentRow][currentCol] == stone) {
+        buffer.write('B');
+      } else {
+        buffer.write('W');
       }
     }
 
-    return false;
-  }
-
-  bool _hasOpenFourInDirection(
-    List<List<int>> board,
-    int row,
-    int col,
-    int rowStep,
-    int colStep,
-    int stone,
-  ) {
-    int winningSpotCount = 0;
-
-    for (int offset = -4; offset <= 4; offset++) {
-      final int targetRow = row + rowStep * offset;
-      final int targetCol = col + colStep * offset;
-
-      if (!isInsideBoard(targetRow, targetCol) ||
-          board[targetRow][targetCol] != empty) {
-        continue;
-      }
-
-      board[targetRow][targetCol] = stone;
-      final bool makesFive =
-          _lineLength(board, targetRow, targetCol, rowStep, colStep, stone) ==
-              5;
-      board[targetRow][targetCol] = empty;
-
-      if (makesFive) {
-        winningSpotCount++;
-      }
-    }
-
-    return winningSpotCount >= 2;
-  }
-
-  int _lineLength(
-    List<List<int>> board,
-    int row,
-    int col,
-    int rowStep,
-    int colStep,
-    int stone,
-  ) {
-    return 1 +
-        _collectSameStones(board, row, col, rowStep, colStep, stone).length +
-        _collectSameStones(board, row, col, -rowStep, -colStep, stone).length;
+    return buffer.toString();
   }
 
   List<BoardPoint> _collectSameStones(
