@@ -40,6 +40,8 @@ class _GomokuPageState extends State<GomokuPage> {
   late List<List<int>> board;
   int currentTurn = blackStone;
   int winner = empty;
+  int? lastMoveRow;
+  int? lastMoveCol;
 
   @override
   void initState() {
@@ -55,6 +57,8 @@ class _GomokuPageState extends State<GomokuPage> {
     );
     currentTurn = blackStone;
     winner = empty;
+    lastMoveRow = null;
+    lastMoveCol = null;
   }
 
   void _handleBoardTap(Offset tapPosition, Size boardAreaSize) {
@@ -97,6 +101,8 @@ class _GomokuPageState extends State<GomokuPage> {
 
     setState(() {
       board[row][col] = currentTurn;
+      lastMoveRow = row;
+      lastMoveCol = col;
 
       // 방금 둔 돌을 기준으로 5개 이상 연결됐는지 확인합니다.
       if (_hasFiveInARow(row, col, currentTurn)) {
@@ -228,6 +234,8 @@ class _GomokuPageState extends State<GomokuPage> {
               empty: empty,
               blackStone: blackStone,
               padding: boardPadding,
+              lastMoveRow: lastMoveRow,
+              lastMoveCol: lastMoveCol,
             ),
           ),
         );
@@ -243,6 +251,8 @@ class GomokuBoardPainter extends CustomPainter {
     required this.empty,
     required this.blackStone,
     required this.padding,
+    required this.lastMoveRow,
+    required this.lastMoveCol,
   });
 
   final List<List<int>> board;
@@ -250,6 +260,8 @@ class GomokuBoardPainter extends CustomPainter {
   final int empty;
   final int blackStone;
   final double padding;
+  final int? lastMoveRow;
+  final int? lastMoveCol;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -261,6 +273,7 @@ class GomokuBoardPainter extends CustomPainter {
     _drawBoardBackground(canvas, boardRect);
     _drawBoardLines(canvas, lineStart, lineEnd, gap);
     _drawStones(canvas, lineStart, gap);
+    _drawLastMoveMarker(canvas, lineStart, gap);
   }
 
   void _drawBoardBackground(Canvas canvas, Rect boardRect) {
@@ -328,6 +341,23 @@ class GomokuBoardPainter extends CustomPainter {
         canvas.drawCircle(center, stoneRadius, stoneBorderPaint);
       }
     }
+  }
+
+  void _drawLastMoveMarker(Canvas canvas, double lineStart, double gap) {
+    if (lastMoveRow == null || lastMoveCol == null) {
+      return;
+    }
+
+    final Offset center = Offset(
+      lineStart + gap * lastMoveCol!,
+      lineStart + gap * lastMoveRow!,
+    );
+    final Paint markerPaint = Paint()
+      ..color = const Color(0xFFFFC107)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+
+    canvas.drawCircle(center, gap * 0.22, markerPaint);
   }
 
   @override

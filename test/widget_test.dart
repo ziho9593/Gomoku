@@ -13,36 +13,59 @@ void main() {
     expect(find.text('게임 재시작'), findsOneWidget);
   });
 
+  testWidgets('Last move is passed to the board painter', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const GomokuApp());
+
+    final Finder boardFinder = _findGomokuBoard();
+    await _tapIntersection(tester, boardFinder, row: 7, col: 7);
+
+    final CustomPaint boardPaint = tester.widget<CustomPaint>(boardFinder);
+    final GomokuBoardPainter painter =
+        boardPaint.painter! as GomokuBoardPainter;
+
+    expect(painter.lastMoveRow, 7);
+    expect(painter.lastMoveCol, 7);
+  });
+
   testWidgets('Black wins after making five stones in a row', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const GomokuApp());
 
-    final Finder boardFinder = find.byWidgetPredicate((Widget widget) {
-      return widget is CustomPaint &&
-          widget.painter.runtimeType.toString() == 'GomokuBoardPainter';
-    });
-    final Offset boardTopLeft = tester.getTopLeft(boardFinder);
-    final Size boardSize = tester.getSize(boardFinder);
-    final double gap = (boardSize.shortestSide - 40) / 14;
+    final Finder boardFinder = _findGomokuBoard();
 
-    Future<void> tapIntersection(int row, int col) async {
-      await tester.tapAt(
-        boardTopLeft + Offset(20 + gap * col, 20 + gap * row),
-      );
-      await tester.pump();
-    }
-
-    await tapIntersection(7, 0); // 흑
-    await tapIntersection(8, 0); // 백
-    await tapIntersection(7, 1); // 흑
-    await tapIntersection(8, 1); // 백
-    await tapIntersection(7, 2); // 흑
-    await tapIntersection(8, 2); // 백
-    await tapIntersection(7, 3); // 흑
-    await tapIntersection(8, 3); // 백
-    await tapIntersection(7, 4); // 흑
+    await _tapIntersection(tester, boardFinder, row: 7, col: 0); // 흑
+    await _tapIntersection(tester, boardFinder, row: 8, col: 0); // 백
+    await _tapIntersection(tester, boardFinder, row: 7, col: 1); // 흑
+    await _tapIntersection(tester, boardFinder, row: 8, col: 1); // 백
+    await _tapIntersection(tester, boardFinder, row: 7, col: 2); // 흑
+    await _tapIntersection(tester, boardFinder, row: 8, col: 2); // 백
+    await _tapIntersection(tester, boardFinder, row: 7, col: 3); // 흑
+    await _tapIntersection(tester, boardFinder, row: 8, col: 3); // 백
+    await _tapIntersection(tester, boardFinder, row: 7, col: 4); // 흑
 
     expect(find.text('흑돌 승리!'), findsOneWidget);
   });
+}
+
+Finder _findGomokuBoard() {
+  return find.byWidgetPredicate((Widget widget) {
+    return widget is CustomPaint && widget.painter is GomokuBoardPainter;
+  });
+}
+
+Future<void> _tapIntersection(
+  WidgetTester tester,
+  Finder boardFinder, {
+  required int row,
+  required int col,
+}) async {
+  final Offset boardTopLeft = tester.getTopLeft(boardFinder);
+  final Size boardSize = tester.getSize(boardFinder);
+  final double gap = (boardSize.shortestSide - 40) / 14;
+
+  await tester.tapAt(boardTopLeft + Offset(20 + gap * col, 20 + gap * row));
+  await tester.pump();
 }
