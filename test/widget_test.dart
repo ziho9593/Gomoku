@@ -13,6 +13,7 @@ void main() {
     expect(find.text('흑돌 차례'), findsOneWidget);
     expect(find.text('60초'), findsOneWidget);
     expect(find.text('게임 재시작'), findsOneWidget);
+    expect(find.text('기권'), findsOneWidget);
   });
 
   testWidgets('Turn changes when the timer reaches zero', (
@@ -82,6 +83,24 @@ void main() {
     final GomokuBoardPainter painter = _boardPainter(tester, boardFinder);
 
     expect(find.text('금수입니다'), findsOneWidget);
+    expect(painter.board[7][7], 0);
+  });
+
+  testWidgets('Current player can resign the game',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const GomokuApp());
+
+    final Finder boardFinder = _findGomokuBoard();
+
+    await tester.tap(find.text('기권'));
+    await tester.pump();
+
+    expect(find.text('백돌 승리!'), findsOneWidget);
+    expect(find.text('종료'), findsOneWidget);
+
+    await _tapIntersection(tester, boardFinder, row: 7, col: 7);
+
+    final GomokuBoardPainter painter = _boardPainter(tester, boardFinder);
     expect(painter.board[7][7], 0);
   });
 

@@ -182,6 +182,18 @@ class _GameScreenState extends State<GameScreen> {
     _startTurnTimer();
   }
 
+  void _resignGame() {
+    if (winner != empty) {
+      return;
+    }
+
+    setState(() {
+      winner = currentTurn == blackStone ? whiteStone : blackStone;
+      forbiddenMessage = null;
+    });
+    _stopTurnTimer();
+  }
+
   void _startTurnTimer() {
     _stopTurnTimer();
     turnTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -280,15 +292,21 @@ class _GameScreenState extends State<GameScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
                 children: [
                   OutlinedButton.icon(
                     onPressed: moveHistory.isEmpty ? null : _undoMove,
                     icon: const Icon(Icons.undo),
                     label: const Text('무르기'),
                   ),
-                  const SizedBox(width: 12),
+                  OutlinedButton.icon(
+                    onPressed: winner == empty ? _resignGame : null,
+                    icon: const Icon(Icons.flag),
+                    label: const Text('기권'),
+                  ),
                   FilledButton.icon(
                     onPressed: _restartGame,
                     icon: const Icon(Icons.refresh),
