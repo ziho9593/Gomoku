@@ -13,7 +13,8 @@ class GomokuApp extends StatelessWidget {
       title: 'Gomoku',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6D4C41)),
+        scaffoldBackgroundColor: const Color(0xFFF4F1EA),
         useMaterial3: true,
       ),
       home: const GomokuPage(),
@@ -191,29 +192,45 @@ class _GomokuPageState extends State<GomokuPage> {
       return '백돌 승리!';
     }
 
-    return currentTurn == blackStone ? '현재 차례: 흑돌' : '현재 차례: 백돌';
+    return currentTurn == blackStone ? '흑돌 차례' : '백돌 차례';
+  }
+
+  Color get _statusAccentColor {
+    if (winner != empty) {
+      return const Color(0xFFB8860B);
+    }
+
+    return currentTurn == blackStone ? Colors.black : Colors.white;
+  }
+
+  Color get _statusAccentBorderColor {
+    return currentTurn == whiteStone && winner == empty
+        ? Colors.black54
+        : Colors.transparent;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('오목'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('오목'),
+        centerTitle: true,
+        backgroundColor: const Color(0xFFF4F1EA),
+        surfaceTintColor: Colors.transparent,
+      ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: Column(
             children: [
-              Text(
-                _statusText,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
+              _buildStatusBar(context),
+              const SizedBox(height: 18),
               Expanded(
                 child: Center(
                   child: AspectRatio(aspectRatio: 1, child: _buildBoard()),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               FilledButton.icon(
                 onPressed: _restartGame,
                 icon: const Icon(Icons.refresh),
@@ -226,33 +243,89 @@ class _GomokuPageState extends State<GomokuPage> {
     );
   }
 
-  Widget _buildBoard() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final Size boardAreaSize = Size(
-          constraints.maxWidth,
-          constraints.maxHeight,
-        );
-
-        return GestureDetector(
-          onTapUp: (details) {
-            _handleBoardTap(details.localPosition, boardAreaSize);
-          },
-          child: CustomPaint(
-            size: boardAreaSize,
-            painter: GomokuBoardPainter(
-              board: board,
-              boardSize: boardSize,
-              empty: empty,
-              blackStone: blackStone,
-              padding: boardPadding,
-              lastMoveRow: lastMoveRow,
-              lastMoveCol: lastMoveCol,
-              winningLine: winningLine,
+  Widget _buildStatusBar(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE0D8CA)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.07),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              color: _statusAccentColor,
+              shape: BoxShape.circle,
+              border: Border.all(color: _statusAccentBorderColor),
             ),
           ),
-        );
-      },
+          const SizedBox(width: 10),
+          Text(
+            _statusText,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF2D2926),
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBoard() {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final Size boardAreaSize = Size(
+              constraints.maxWidth,
+              constraints.maxHeight,
+            );
+
+            return GestureDetector(
+              onTapUp: (details) {
+                _handleBoardTap(details.localPosition, boardAreaSize);
+              },
+              child: CustomPaint(
+                size: boardAreaSize,
+                painter: GomokuBoardPainter(
+                  board: board,
+                  boardSize: boardSize,
+                  empty: empty,
+                  blackStone: blackStone,
+                  padding: boardPadding,
+                  lastMoveRow: lastMoveRow,
+                  lastMoveCol: lastMoveCol,
+                  winningLine: winningLine,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -278,6 +351,14 @@ class GomokuBoardPainter extends CustomPainter {
   final int? lastMoveCol;
   final List<BoardPoint> winningLine;
 
+  static const List<BoardPoint> starPoints = [
+    BoardPoint(3, 3),
+    BoardPoint(3, 11),
+    BoardPoint(7, 7),
+    BoardPoint(11, 3),
+    BoardPoint(11, 11),
+  ];
+
   @override
   void paint(Canvas canvas, Size size) {
     final Rect boardRect = Offset.zero & size;
@@ -287,20 +368,30 @@ class GomokuBoardPainter extends CustomPainter {
 
     _drawBoardBackground(canvas, boardRect);
     _drawBoardLines(canvas, lineStart, lineEnd, gap);
+    _drawStarPoints(canvas, lineStart, gap);
     _drawStones(canvas, lineStart, gap);
     _drawWinningLine(canvas, lineStart, gap);
     _drawLastMoveMarker(canvas, lineStart, gap);
   }
 
   void _drawBoardBackground(Canvas canvas, Rect boardRect) {
-    final Paint backgroundPaint = Paint()..color = const Color(0xFFD9A85F);
+    final Paint backgroundPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFFE8BE72),
+          Color(0xFFD39A4A),
+          Color(0xFFC88937),
+        ],
+      ).createShader(boardRect);
     final Paint borderPaint = Paint()
-      ..color = Colors.brown.shade900
+      ..color = const Color(0xFF5D3218)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = 3;
 
     canvas.drawRect(boardRect, backgroundPaint);
-    canvas.drawRect(boardRect.deflate(1), borderPaint);
+    canvas.drawRect(boardRect.deflate(1.5), borderPaint);
   }
 
   void _drawBoardLines(
@@ -310,7 +401,7 @@ class GomokuBoardPainter extends CustomPainter {
     double gap,
   ) {
     final Paint linePaint = Paint()
-      ..color = Colors.brown.shade800
+      ..color = const Color(0xFF5F371F).withValues(alpha: 0.78)
       ..strokeWidth = 1;
 
     for (int i = 0; i < boardSize; i++) {
@@ -326,6 +417,17 @@ class GomokuBoardPainter extends CustomPainter {
         Offset(position, lineEnd),
         linePaint,
       );
+    }
+  }
+
+  void _drawStarPoints(Canvas canvas, double lineStart, double gap) {
+    final Paint starPaint = Paint()
+      ..color = const Color(0xFF4A2B19)
+      ..style = PaintingStyle.fill;
+
+    for (final BoardPoint point in starPoints) {
+      canvas.drawCircle(
+          _pointCenter(point, lineStart, gap), gap * 0.11, starPaint);
     }
   }
 
@@ -345,18 +447,33 @@ class GomokuBoardPainter extends CustomPainter {
           lineStart + gap * row,
         );
 
-        final bool isBlack = stone == blackStone;
-        final Paint stonePaint = Paint()
-          ..color = isBlack ? Colors.black : Colors.white;
-        final Paint stoneBorderPaint = Paint()
-          ..color = Colors.black87
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1;
-
-        canvas.drawCircle(center, stoneRadius, stonePaint);
-        canvas.drawCircle(center, stoneRadius, stoneBorderPaint);
+        _drawStone(canvas, center, stoneRadius, stone);
       }
     }
+  }
+
+  void _drawStone(Canvas canvas, Offset center, double radius, int stone) {
+    final bool isBlack = stone == blackStone;
+    final Rect stoneRect = Rect.fromCircle(center: center, radius: radius);
+    final Paint shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.24)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+    final Paint stonePaint = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.35, -0.45),
+        radius: 0.9,
+        colors: isBlack
+            ? const [Color(0xFF55504A), Color(0xFF111111), Color(0xFF000000)]
+            : const [Color(0xFFFFFFFF), Color(0xFFF1EEE7), Color(0xFFD8D1C8)],
+      ).createShader(stoneRect);
+    final Paint stoneBorderPaint = Paint()
+      ..color = isBlack ? Colors.black : const Color(0xFF8E867B)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    canvas.drawCircle(center + const Offset(1.6, 2.2), radius, shadowPaint);
+    canvas.drawCircle(center, radius, stonePaint);
+    canvas.drawCircle(center, radius, stoneBorderPaint);
   }
 
   void _drawWinningLine(Canvas canvas, double lineStart, double gap) {
