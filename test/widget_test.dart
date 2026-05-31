@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:gomoku/main.dart';
+import 'package:gomoku/widgets/gomoku_board.dart';
 
 void main() {
   testWidgets('Gomoku app shows the first turn, timer, and restart button', (
