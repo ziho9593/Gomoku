@@ -21,6 +21,13 @@ class GomokuApp extends StatelessWidget {
   }
 }
 
+class BoardPoint {
+  const BoardPoint(this.row, this.col);
+
+  final int row;
+  final int col;
+}
+
 class GomokuPage extends StatefulWidget {
   const GomokuPage({super.key});
 
@@ -42,6 +49,7 @@ class _GomokuPageState extends State<GomokuPage> {
   int winner = empty;
   int? lastMoveRow;
   int? lastMoveCol;
+  List<BoardPoint> winningLine = [];
 
   @override
   void initState() {
@@ -59,6 +67,7 @@ class _GomokuPageState extends State<GomokuPage> {
     winner = empty;
     lastMoveRow = null;
     lastMoveCol = null;
+    winningLine = [];
   }
 
   void _handleBoardTap(Offset tapPosition, Size boardAreaSize) {
@@ -105,8 +114,10 @@ class _GomokuPageState extends State<GomokuPage> {
       lastMoveCol = col;
 
       // 방금 둔 돌을 기준으로 5개 이상 연결됐는지 확인합니다.
-      if (_hasFiveInARow(row, col, currentTurn)) {
+      final List<BoardPoint> line = _findWinningLine(row, col, currentTurn);
+      if (line.isNotEmpty) {
         winner = currentTurn;
+        winningLine = line;
         return;
       }
 
@@ -114,7 +125,7 @@ class _GomokuPageState extends State<GomokuPage> {
     });
   }
 
-  bool _hasFiveInARow(int row, int col, int stone) {
+  List<BoardPoint> _findWinningLine(int row, int col, int stone) {
     // 가로, 세로, 대각선 2개 방향만 확인하면 모든 5목을 검사할 수 있습니다.
     const List<List<int>> directions = [
       [0, 1],
@@ -126,38 +137,39 @@ class _GomokuPageState extends State<GomokuPage> {
     for (final List<int> direction in directions) {
       final int rowStep = direction[0];
       final int colStep = direction[1];
+      final List<BoardPoint> line = [
+        ..._collectSameStones(row, col, -rowStep, -colStep, stone).reversed,
+        BoardPoint(row, col),
+        ..._collectSameStones(row, col, rowStep, colStep, stone),
+      ];
 
-      final int connectedCount = 1 +
-          _countSameStones(row, col, rowStep, colStep, stone) +
-          _countSameStones(row, col, -rowStep, -colStep, stone);
-
-      if (connectedCount >= 5) {
-        return true;
+      if (line.length >= 5) {
+        return line.take(5).toList();
       }
     }
 
-    return false;
+    return [];
   }
 
-  int _countSameStones(
+  List<BoardPoint> _collectSameStones(
     int startRow,
     int startCol,
     int rowStep,
     int colStep,
     int stone,
   ) {
-    int count = 0;
+    final List<BoardPoint> points = [];
     int row = startRow + rowStep;
     int col = startCol + colStep;
 
-    // 한 방향으로 이동하면서 같은 색 돌이 연속되는 개수를 셉니다.
+    // 한 방향으로 이동하면서 같은 색 돌이 연속되는 좌표를 모읍니다.
     while (_isInsideBoard(row, col) && board[row][col] == stone) {
-      count++;
+      points.add(BoardPoint(row, col));
       row += rowStep;
       col += colStep;
     }
 
-    return count;
+    return points;
   }
 
   bool _isInsideBoard(int row, int col) {
@@ -236,6 +248,7 @@ class _GomokuPageState extends State<GomokuPage> {
               padding: boardPadding,
               lastMoveRow: lastMoveRow,
               lastMoveCol: lastMoveCol,
+              winningLine: winningLine,
             ),
           ),
         );
@@ -253,6 +266,7 @@ class GomokuBoardPainter extends CustomPainter {
     required this.padding,
     required this.lastMoveRow,
     required this.lastMoveCol,
+    required this.winningLine,
   });
 
   final List<List<int>> board;
@@ -262,6 +276,7 @@ class GomokuBoardPainter extends CustomPainter {
   final double padding;
   final int? lastMoveRow;
   final int? lastMoveCol;
+  final List<BoardPoint> winningLine;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -273,6 +288,7 @@ class GomokuBoardPainter extends CustomPainter {
     _drawBoardBackground(canvas, boardRect);
     _drawBoardLines(canvas, lineStart, lineEnd, gap);
     _drawStones(canvas, lineStart, gap);
+    _drawWinningLine(canvas, lineStart, gap);
     _drawLastMoveMarker(canvas, lineStart, gap);
   }
 
@@ -343,6 +359,26 @@ class GomokuBoardPainter extends CustomPainter {
     }
   }
 
+  void _drawWinningLine(Canvas canvas, double lineStart, double gap) {
+    if (winningLine.length < 2) {
+      return;
+    }
+
+    final Offset start = _pointCenter(winningLine.first, lineStart, gap);
+    final Offset end = _pointCenter(winningLine.last, lineStart, gap);
+    final Paint glowPaint = Paint()
+      ..color = const Color(0xFFFFF176).withValues(alpha: 0.65)
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = gap * 0.5;
+    final Paint linePaint = Paint()
+      ..color = const Color(0xFFFFC107)
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 4;
+
+    canvas.drawLine(start, end, glowPaint);
+    canvas.drawLine(start, end, linePaint);
+  }
+
   void _drawLastMoveMarker(Canvas canvas, double lineStart, double gap) {
     if (lastMoveRow == null || lastMoveCol == null) {
       return;
@@ -358,6 +394,10 @@ class GomokuBoardPainter extends CustomPainter {
       ..strokeWidth = 2.5;
 
     canvas.drawCircle(center, gap * 0.22, markerPaint);
+  }
+
+  Offset _pointCenter(BoardPoint point, double lineStart, double gap) {
+    return Offset(lineStart + gap * point.col, lineStart + gap * point.row);
   }
 
   @override

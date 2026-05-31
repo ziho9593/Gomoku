@@ -21,15 +21,13 @@ void main() {
     final Finder boardFinder = _findGomokuBoard();
     await _tapIntersection(tester, boardFinder, row: 7, col: 7);
 
-    final CustomPaint boardPaint = tester.widget<CustomPaint>(boardFinder);
-    final GomokuBoardPainter painter =
-        boardPaint.painter! as GomokuBoardPainter;
+    final GomokuBoardPainter painter = _boardPainter(tester, boardFinder);
 
     expect(painter.lastMoveRow, 7);
     expect(painter.lastMoveCol, 7);
   });
 
-  testWidgets('Black wins after making five stones in a row', (
+  testWidgets('Black wins and passes the winning line to the board painter', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const GomokuApp());
@@ -46,7 +44,14 @@ void main() {
     await _tapIntersection(tester, boardFinder, row: 8, col: 3); // 백
     await _tapIntersection(tester, boardFinder, row: 7, col: 4); // 흑
 
+    final GomokuBoardPainter painter = _boardPainter(tester, boardFinder);
+
     expect(find.text('흑돌 승리!'), findsOneWidget);
+    expect(painter.winningLine.length, 5);
+    expect(painter.winningLine.first.row, 7);
+    expect(painter.winningLine.first.col, 0);
+    expect(painter.winningLine.last.row, 7);
+    expect(painter.winningLine.last.col, 4);
   });
 }
 
@@ -54,6 +59,11 @@ Finder _findGomokuBoard() {
   return find.byWidgetPredicate((Widget widget) {
     return widget is CustomPaint && widget.painter is GomokuBoardPainter;
   });
+}
+
+GomokuBoardPainter _boardPainter(WidgetTester tester, Finder boardFinder) {
+  final CustomPaint boardPaint = tester.widget<CustomPaint>(boardFinder);
+  return boardPaint.painter! as GomokuBoardPainter;
 }
 
 Future<void> _tapIntersection(
