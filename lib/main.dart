@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 void main() {
@@ -41,6 +43,7 @@ class _GomokuPageState extends State<GomokuPage> {
   static const int empty = 0;
   static const int blackStone = 1;
   static const int whiteStone = 2;
+  static const int turnTimeLimitSeconds = 60;
 
   // 돌이 보드 가장자리에서 잘리지 않도록 선을 안쪽에서 시작합니다.
   static const double boardPadding = 20;
@@ -50,12 +53,21 @@ class _GomokuPageState extends State<GomokuPage> {
   int winner = empty;
   int? lastMoveRow;
   int? lastMoveCol;
+  int remainingSeconds = turnTimeLimitSeconds;
+  Timer? turnTimer;
   List<BoardPoint> winningLine = [];
 
   @override
   void initState() {
     super.initState();
     _resetGame();
+    _startTurnTimer();
+  }
+
+  @override
+  void dispose() {
+    _stopTurnTimer();
+    super.dispose();
   }
 
   void _resetGame() {
@@ -68,6 +80,7 @@ class _GomokuPageState extends State<GomokuPage> {
     winner = empty;
     lastMoveRow = null;
     lastMoveCol = null;
+    remainingSeconds = turnTimeLimitSeconds;
     winningLine = [];
   }
 
@@ -109,21 +122,31 @@ class _GomokuPageState extends State<GomokuPage> {
       return;
     }
 
+    bool gameWon = false;
+
     setState(() {
       board[row][col] = currentTurn;
       lastMoveRow = row;
       lastMoveCol = col;
+      remainingSeconds = turnTimeLimitSeconds;
 
       // 방금 둔 돌을 기준으로 5개 이상 연결됐는지 확인합니다.
       final List<BoardPoint> line = _findWinningLine(row, col, currentTurn);
       if (line.isNotEmpty) {
         winner = currentTurn;
         winningLine = line;
+        gameWon = true;
         return;
       }
 
       currentTurn = currentTurn == blackStone ? whiteStone : blackStone;
     });
+
+    if (gameWon) {
+      _stopTurnTimer();
+    } else {
+      _startTurnTimer();
+    }
   }
 
   List<BoardPoint> _findWinningLine(int row, int col, int stone) {
@@ -181,6 +204,35 @@ class _GomokuPageState extends State<GomokuPage> {
     setState(() {
       _resetGame();
     });
+    _startTurnTimer();
+  }
+
+  void _startTurnTimer() {
+    _stopTurnTimer();
+    turnTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) {
+        return;
+      }
+
+      if (winner != empty) {
+        _stopTurnTimer();
+        return;
+      }
+
+      setState(() {
+        if (remainingSeconds > 1) {
+          remainingSeconds--;
+        } else {
+          currentTurn = currentTurn == blackStone ? whiteStone : blackStone;
+          remainingSeconds = turnTimeLimitSeconds;
+        }
+      });
+    });
+  }
+
+  void _stopTurnTimer() {
+    turnTimer?.cancel();
+    turnTimer = null;
   }
 
   String get _statusText {
@@ -279,7 +331,36 @@ class _GomokuPageState extends State<GomokuPage> {
                   color: const Color(0xFF2D2926),
                 ),
           ),
+          const SizedBox(width: 12),
+          _buildTimerBadge(context),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTimerBadge(BuildContext context) {
+    final bool isWarning = winner == empty && remainingSeconds <= 10;
+    final Color badgeColor =
+        isWarning ? const Color(0xFFFFEBEE) : const Color(0xFFF7EFE2);
+    final Color textColor =
+        isWarning ? const Color(0xFFC62828) : const Color(0xFF5D4037);
+    final String timerText = winner == empty ? '$remainingSeconds초' : '종료';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: badgeColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isWarning ? const Color(0xFFEF9A9A) : const Color(0xFFE0D8CA),
+        ),
+      ),
+      child: Text(
+        timerText,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: textColor,
+              fontWeight: FontWeight.w700,
+            ),
       ),
     );
   }
