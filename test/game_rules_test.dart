@@ -22,6 +22,7 @@ void main() {
     }
 
     expect(rules.isForbiddenMove(board, 7, 7, blackStone), isFalse);
+    expect(rules.forbiddenMoveReason(board, 7, 7, blackStone), isNull);
   });
 
   test('overline is forbidden for black', () {
@@ -32,6 +33,7 @@ void main() {
     }
 
     expect(rules.isForbiddenMove(board, 7, 7, blackStone), isTrue);
+    expect(rules.forbiddenMoveReason(board, 7, 7, blackStone), '장목 금수');
   });
 
   test('double-four is forbidden for black', () {
@@ -45,6 +47,7 @@ void main() {
     }
 
     expect(rules.isForbiddenMove(board, 7, 7, blackStone), isTrue);
+    expect(rules.forbiddenMoveReason(board, 7, 7, blackStone), '쌍사 금수');
   });
 
   test('double-three is forbidden for black', () {
@@ -56,5 +59,6 @@ void main() {
     board[8][7] = blackStone;
 
     expect(rules.isForbiddenMove(board, 7, 7, blackStone), isTrue);
+    expect(rules.forbiddenMoveReason(board, 7, 7, blackStone), '쌍삼 금수');
   });
 }

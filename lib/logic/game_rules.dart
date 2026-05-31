@@ -51,8 +51,17 @@ class GameRules {
     int col,
     int blackStone,
   ) {
+    return forbiddenMoveReason(board, row, col, blackStone) != null;
+  }
+
+  String? forbiddenMoveReason(
+    List<List<int>> board,
+    int row,
+    int col,
+    int blackStone,
+  ) {
     if (board[row][col] != empty) {
-      return false;
+      return null;
     }
 
     board[row][col] = blackStone;
@@ -60,13 +69,20 @@ class GameRules {
     final bool isOverline = _hasOverline(board, row, col, blackStone);
     final bool isExactFive =
         findWinningLine(board, row, col, blackStone).isNotEmpty && !isOverline;
-    final bool isForbidden = !isExactFive &&
-        (isOverline ||
-            _countFourDirections(board, row, col, blackStone) >= 2 ||
-            _countOpenThreeDirections(board, row, col, blackStone) >= 2);
+    String? reason;
+
+    if (!isExactFive) {
+      if (isOverline) {
+        reason = '장목 금수';
+      } else if (_countFourDirections(board, row, col, blackStone) >= 2) {
+        reason = '쌍사 금수';
+      } else if (_countOpenThreeDirections(board, row, col, blackStone) >= 2) {
+        reason = '쌍삼 금수';
+      }
+    }
 
     board[row][col] = empty;
-    return isForbidden;
+    return reason;
   }
 
   bool _hasOverline(List<List<int>> board, int row, int col, int stone) {

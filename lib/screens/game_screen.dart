@@ -106,10 +106,12 @@ class _GameScreenState extends State<GameScreen> {
       return;
     }
 
-    if (currentTurn == blackStone &&
-        gameRules.isForbiddenMove(board, row, col, blackStone)) {
+    final String? forbiddenReason = currentTurn == blackStone
+        ? gameRules.forbiddenMoveReason(board, row, col, blackStone)
+        : null;
+    if (forbiddenReason != null) {
       setState(() {
-        forbiddenMessage = '금수입니다';
+        forbiddenMessage = forbiddenReason;
       });
       return;
     }

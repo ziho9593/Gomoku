@@ -82,7 +82,7 @@ void main() {
 
     final GomokuBoardPainter painter = _boardPainter(tester, boardFinder);
 
-    expect(find.text('금수입니다'), findsOneWidget);
+    expect(find.text('쌍삼 금수'), findsOneWidget);
     expect(painter.board[7][7], 0);
   });
 
