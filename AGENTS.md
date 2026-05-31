@@ -19,3 +19,7 @@
 * This project contains Korean comments and UI strings.
 * Keep Korean text unchanged.
 * Do not rewrite Korean text unless requested.
+* The first single-file prototype is complete; keep new code in the split structure under `screens/`, `widgets/`, `models/`, and `logic/`.
+* Continue using `StatefulWidget` and `setState()` for state management until the user asks for a different approach.
+* Do not add external packages for UI, state management, or game logic unless the user explicitly approves it.
+* Keep game-rule logic out of painter widgets when practical; prefer `logic/game_rules.dart` for pure rule checks.

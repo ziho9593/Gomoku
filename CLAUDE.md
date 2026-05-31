@@ -57,7 +57,7 @@
 
 초기에는 `main.dart` 하나에서 시작해도 된다.
 
-기능이 안정화되면 아래 구조로 분리한다.
+현재 프로젝트는 기본 기능이 안정화되어 아래 구조로 분리한 상태다.
 
 ```text
 lib/
@@ -65,12 +65,15 @@ lib/
  ├─ screens/
  │   └─ game_screen.dart
  ├─ widgets/
- │   └─ omok_board.dart
+ │   ├─ gomoku_board.dart
+ │   └─ game_status_bar.dart
  ├─ models/
- │   └─ stone.dart
+ │   └─ board_point.dart
  └─ logic/
      └─ game_rules.dart
 ```
+
+새 기능을 추가할 때는 가능한 한 이 구조를 유지한다.
 
 ## 데이터 표현 방식
 
